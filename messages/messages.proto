@@ -236,7 +236,11 @@ message CalendarDate {
   // The era name in the target calendar, e.g. "CE", "AM" (Hebrew), "AH"
   // (Islamic), "AP" (Persian).
   string era = 4;
-  // The target calendar's canonical name, as echoed back.
+  // The target calendar, spelled in this package's own input vocabulary
+  // (the same tokens ConvertCalendarDateInput.to_calendar and
+  // CalendarInfoInput.calendar accept) — NOT NodaTime's own CalendarSystem
+  // id. This makes the field directly reusable as another node's calendar
+  // input with no translation, e.g. piped straight into GetCalendarInfo.
   string calendar = 5;
   // The same date's ISO 8601 (proleptic Gregorian) equivalent, yyyy-MM-dd,
   // for cross-checking.

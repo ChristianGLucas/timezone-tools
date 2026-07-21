@@ -54,7 +54,7 @@ public static class ConvertCalendarDateNode
             Month = converted.Month,
             Day = converted.Day,
             Era = converted.Era.ToString(),
-            Calendar = toCal.Id,
+            Calendar = TzHelper.CanonicalCalendarName(input.ToCalendar),
             IsoDate = $"{isoEquivalent.Year:D4}-{isoEquivalent.Month:D2}-{isoEquivalent.Day:D2}",
             Error = "",
         };

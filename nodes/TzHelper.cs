@@ -195,4 +195,31 @@ internal static class TzHelper
             _ => null,
         };
     }
+
+    // The canonical spelling of a resolved calendar token, IN OUR OWN input
+    // vocabulary (never NodaTime's own CalendarSystem.Id, e.g. "Hebrew
+    // Civil" or "Hijri Civil-Base15") — so a node's output `calendar` field
+    // is always itself a valid `from_calendar`/`to_calendar`/`calendar`
+    // input to any other node in this package (composability: an edge can
+    // pipe ConvertCalendarDate.calendar straight into GetCalendarInfo.calendar
+    // with no translation). Must be kept in exact 1:1 sync with
+    // ResolveCalendar above. Returns "" for an unrecognized token (callers
+    // only reach this after ResolveCalendar already succeeded).
+    public static string CanonicalCalendarName(string? name)
+    {
+        var key = IsBlank(name) ? "iso" : name!.Trim().ToLowerInvariant();
+        return key switch
+        {
+            "iso" => "Iso",
+            "gregorian" => "Gregorian",
+            "julian" => "Julian",
+            "coptic" => "Coptic",
+            "hebrew" or "hebrewcivil" => "HebrewCivil",
+            "hebrewscriptural" => "HebrewScriptural",
+            "islamic" or "islamiccivil" => "IslamicCivil",
+            "persian" or "persiansimple" => "PersianSimple",
+            "badi" => "Badi",
+            _ => "",
+        };
+    }
 }

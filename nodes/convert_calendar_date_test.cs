@@ -87,6 +87,18 @@ public class ConvertCalendarDateTest
         Assert.Equal(7, result.Day);
         Assert.Equal("AM", result.Era);
         Assert.Equal("2026-07-21", result.IsoDate);
+        // Composability: the output `calendar` field must be spelled in this
+        // package's OWN input vocabulary (never NodaTime's raw
+        // CalendarSystem.Id, e.g. "Hebrew Civil") so it is directly valid as
+        // another node's `calendar`/`from_calendar`/`to_calendar` input —
+        // proven immediately below by feeding it straight into
+        // GetCalendarInfo with no translation.
+        Assert.Equal("HebrewCivil", result.Calendar);
+
+        var infoInput = new CalendarInfoInput { Calendar = result.Calendar, Year = result.Year };
+        var info = GetCalendarInfoNode.GetCalendarInfo(ax, infoInput);
+        Assert.Equal("", info.Error);
+        Assert.Equal(12, info.MonthsInYear);
     }
 
     // Round trip back to ISO recovers the original date exactly.

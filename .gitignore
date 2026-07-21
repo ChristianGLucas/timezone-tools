@@ -1,0 +1,9 @@
+# Axiom build artifacts
+.axiom/
+
+# Generated proto bindings
+gen/
+
+# C#
+bin/
+obj/

@@ -1,0 +1,302 @@
+// This file defines the data contracts (messages) for your Axiom package.
+// Every node's --input and --output refers to a message defined here.
+//
+// Run `axiom create message <Name>` to scaffold a new message below.
+// Run `axiom generate` to compile these definitions into language bindings in gen/.
+//
+// DOCUMENTATION
+//   Comments written directly above a message or field declaration are extracted
+//   automatically at publish time and shown in the Axiom registry as documentation.
+//   Write your descriptions there — no separate doc files needed.
+//
+//   Leading comment  (no blank line before the declaration) → registry description ✓
+//   Detached comment (blank line before the declaration)    → ignored by registry  ✗
+//
+// This file is yours to edit. Axiom only appends new message blocks — it never
+// overwrites or removes content you have written.
+
+syntax = "proto3";
+
+package christiangeorgelucas.timezone_tools;
+
+option csharp_namespace = "Gen";
+
+// Canonical envelope: a point in time bound to an IANA time zone, carried
+// both as the absolute instant (instant_utc) and the local wall-clock
+// reading in that zone (local_date_time), plus the zone's UTC offset/DST
+// state at that instant. Every node that resolves or moves a point in time
+// both accepts and emits this message, so it composes directly node-to-node.
+//
+// As INPUT: set exactly one of instant_utc (authoritative, e.g.
+// "2026-07-21T12:34:56.789Z") or local_date_time (a wall-clock reading in
+// zone_id, e.g. "2026-07-21T08:34:56.789", resolved against DST gaps/
+// overlaps by the consuming node's own resolution policy). zone_id is
+// always required.
+//
+// As OUTPUT: both instant_utc and local_date_time are populated, along with
+// the offset/DST fields. On failure every field is empty/zero except
+// `error`, which carries a stable structured token — a node never crashes
+// on malformed input.
+message ZonedInstant {
+  // The absolute instant in UTC, RFC 3339, e.g. "2026-07-21T12:34:56.789Z".
+  string instant_utc = 1;
+  // IANA time zone id, e.g. "America/New_York", "Europe/London", "UTC".
+  string zone_id = 2;
+  // ISO-8601 local wall-clock reading in zone_id, no offset, e.g.
+  // "2026-07-21T08:34:56.789".
+  string local_date_time = 3;
+  // OUTPUT only: offset from UTC in whole seconds at this instant/zone.
+  int64 offset_seconds = 4;
+  // OUTPUT only: the offset formatted like "-05:00", "+09:30", or "Z".
+  string offset_iso = 5;
+  // OUTPUT only: true if daylight-saving/summer time is in effect.
+  bool is_dst = 6;
+  // OUTPUT only: the zone's abbreviation at this instant, e.g. "EDT".
+  string zone_abbreviation = 7;
+  // Empty on success. The exact token vocabulary depends on which node
+  // produced this message (see that node's own description) — the union
+  // across every ZonedInstant-emitting node is: EMPTY_INPUT,
+  // INVALID_ARGUMENT, UNKNOWN_ZONE, AMBIGUOUS_LOCAL_TIME,
+  // SKIPPED_LOCAL_TIME, OUT_OF_RANGE, INVALID_PATTERN, INTERNAL_ERROR.
+  string error = 8;
+}
+
+// Input for ConvertZone: reinterpret a ZonedInstant in a different IANA zone,
+// preserving the underlying instant.
+message ConvertZoneInput {
+  // The source point in time. See ZonedInstant for instant_utc vs
+  // local_date_time input rules.
+  ZonedInstant source = 1;
+  // The IANA zone id to convert into.
+  string target_zone_id = 2;
+  // How to resolve an ambiguous (DST-overlap, e.g. the repeated 1:30am when
+  // clocks fall back) or skipped (DST-gap, e.g. the missing 2:30am when
+  // clocks spring forward) local wall-clock time, when source.local_date_time
+  // (rather than instant_utc) is the input. One of "reject" (default:
+  // returns AMBIGUOUS_LOCAL_TIME / SKIPPED_LOCAL_TIME rather than guess),
+  // "earlier" (the earlier of the two offsets / the pre-transition offset),
+  // or "later" (the later offset / the post-transition offset).
+  string dst_resolution = 3;
+}
+
+// Input for GetOffset: the UTC offset and DST status of a zone at an instant.
+message GetOffsetInput {
+  // The instant to query, RFC 3339 UTC, e.g. "2026-01-15T12:00:00Z".
+  string instant_utc = 1;
+  // The IANA zone id to query, e.g. "America/New_York".
+  string zone_id = 2;
+}
+
+// Input for ListDstTransitions: every offset/DST change a zone undergoes in
+// a bounded instant range.
+message ListDstTransitionsInput {
+  // The IANA zone id to query.
+  string zone_id = 1;
+  // Range start, RFC 3339 UTC, inclusive.
+  string start_utc = 2;
+  // Range end, RFC 3339 UTC, exclusive. A span longer than 100 years is
+  // rejected with RANGE_TOO_LARGE rather than walked. Within that bound,
+  // the walk is additionally capped at 500 returned transitions as a
+  // defensive limit; `truncated` reports whether that second cap was hit
+  // before reaching end_utc (in practice unreachable for any real zone
+  // within a 100-year span, since modern zones change at most a handful of
+  // times per year).
+  string end_utc = 3;
+}
+
+// One offset/DST change for a zone.
+message DstTransition {
+  // The instant the change takes effect, RFC 3339 UTC.
+  string instant_utc = 1;
+  // The UTC offset (seconds) immediately before this instant.
+  int64 offset_before_seconds = 2;
+  // The UTC offset (seconds) immediately after this instant.
+  int64 offset_after_seconds = 3;
+  // True if DST/summer time is in effect immediately after this instant.
+  bool is_dst_after = 4;
+  // The zone's abbreviation immediately before this instant, e.g. "EST".
+  string abbreviation_before = 5;
+  // The zone's abbreviation immediately after this instant, e.g. "EDT".
+  string abbreviation_after = 6;
+}
+
+// Output for ListDstTransitions.
+message ListDstTransitionsResult {
+  // Every zone-interval boundary in [start_utc, end_utc), in order.
+  repeated DstTransition transitions = 1;
+  // True if the 100-year / 500-transition cap was hit before end_utc — the
+  // list is a valid prefix, not a crash, but is not the complete range.
+  bool truncated = 2;
+  // Empty on success. One of: EMPTY_INPUT, INVALID_ARGUMENT, UNKNOWN_ZONE,
+  // RANGE_TOO_LARGE, INTERNAL_ERROR.
+  string error = 3;
+}
+
+// Input for GetDuration: the exact elapsed time between two instants.
+message GetDurationInput {
+  // Range start, RFC 3339 UTC.
+  string start_utc = 1;
+  // Range end, RFC 3339 UTC.
+  string end_utc = 2;
+}
+
+// Output for GetDuration: exact timeline elapsed time (NOT calendar-aware —
+// use GetPeriod for years/months/days). Always the exact difference, with
+// sign carried separately in `negative` so the magnitude fields are always
+// non-negative.
+message ElapsedDuration {
+  // The exact signed duration in nanoseconds (end_utc - start_utc).
+  int64 total_nanoseconds = 1;
+  // The exact signed duration in seconds (may have a fractional part).
+  double total_seconds = 2;
+  // Magnitude broken into whole 24-hour days plus a sub-day remainder.
+  int64 days = 3;
+  int32 hours = 4;
+  int32 minutes = 5;
+  int32 seconds = 6;
+  int32 milliseconds = 7;
+  // True if end_utc is before start_utc.
+  bool negative = 8;
+  // Empty on success. One of: EMPTY_INPUT, INVALID_ARGUMENT, INTERNAL_ERROR.
+  string error = 9;
+}
+
+// Input for GetPeriod: the calendar-aware difference (years/months/days/...)
+// between two civil date-times, honoring each side's own zone and any
+// non-ISO calendar system.
+message GetPeriodInput {
+  // The earlier (or later — sign is reported in `negative`) point in time.
+  // Only the civil local_date_time reading is compared; zone_id is used
+  // only to resolve local_date_time when instant_utc is not given.
+  ZonedInstant start = 1;
+  ZonedInstant end = 2;
+}
+
+// Output for GetPeriod: a calendar period (Y/M/D + time-of-day), the
+// units NodaTime's Period.Between produces for two LocalDateTime values.
+message CalendarPeriod {
+  int32 years = 1;
+  int32 months = 2;
+  int32 weeks = 3;
+  int32 days = 4;
+  int32 hours = 5;
+  int32 minutes = 6;
+  int32 seconds = 7;
+  // True if end is before start (all magnitude fields are still >= 0).
+  bool negative = 8;
+  // Empty on success. One of: EMPTY_INPUT, INVALID_ARGUMENT, INTERNAL_ERROR.
+  string error = 9;
+}
+
+// Input for AddPeriod: add a calendar period (years/months/days/...) to a
+// zoned point in time, honoring DST — i.e. "one month later" lands on the
+// same wall-clock time next month even if the UTC offset differs there.
+message AddPeriodInput {
+  ZonedInstant zoned = 1;
+  // The period to add. Unlike GetPeriod's output (always non-negative +
+  // `negative` flag), here each field is a signed offset applied directly —
+  // a negative field subtracts (e.g. months=-1 goes back one month).
+  CalendarPeriod period = 2;
+  // Resolution policy if the shifted local time lands in a DST gap/overlap.
+  // Same vocabulary as ConvertZoneInput.dst_resolution; empty defaults to
+  // "later" here (rather than ConvertZone's "reject"), since a period shift
+  // landing on a gap/overlap is the routine case this node exists to handle.
+  string dst_resolution = 3;
+}
+
+// Input for AddDuration: add an exact elapsed duration (real seconds, NOT
+// calendar units) to a zoned point in time — e.g. "24 hours from now",
+// which can land on a different wall-clock time than "+1 day" across a DST
+// transition, unlike AddPeriod.
+message AddDurationInput {
+  ZonedInstant zoned = 1;
+  // Exact seconds to add (may be fractional or negative).
+  double seconds = 2;
+}
+
+// Input for ConvertCalendarDate: reinterpret a calendar date in a different
+// calendar system (ISO/Gregorian/Julian/Hebrew/Islamic/Persian/Coptic/...).
+message ConvertCalendarDateInput {
+  int32 year = 1;
+  int32 month = 2;
+  int32 day = 3;
+  // The calendar `year`/`month`/`day` are expressed in. One of "Iso",
+  // "Gregorian", "Julian", "Coptic", "Hebrew", "IslamicCivil", "Persian",
+  // "Badi". Case-insensitive; empty defaults to "Iso".
+  string from_calendar = 4;
+  // The calendar to convert into. Same vocabulary as from_calendar.
+  string to_calendar = 5;
+}
+
+// Output for ConvertCalendarDate.
+message CalendarDate {
+  int32 year = 1;
+  int32 month = 2;
+  int32 day = 3;
+  // The era name in the target calendar, e.g. "CE", "AM" (Hebrew), "AH"
+  // (Islamic), "AP" (Persian).
+  string era = 4;
+  // The target calendar's canonical name, as echoed back.
+  string calendar = 5;
+  // The same date's ISO 8601 (proleptic Gregorian) equivalent, yyyy-MM-dd,
+  // for cross-checking.
+  string iso_date = 6;
+  // Empty on success. One of: EMPTY_INPUT, INVALID_ARGUMENT, UNKNOWN_CALENDAR,
+  // OUT_OF_RANGE, INTERNAL_ERROR.
+  string error = 7;
+}
+
+// Input for GetCalendarInfo: structural facts about a calendar system for a
+// given year (leap-year status and month count can vary by calendar and,
+// for lunisolar calendars like Hebrew, by year).
+message CalendarInfoInput {
+  // Same calendar vocabulary as ConvertCalendarDateInput.from_calendar.
+  string calendar = 1;
+  // The year to query (in the target calendar's own numbering).
+  int32 year = 2;
+}
+
+// Output for GetCalendarInfo.
+message CalendarInfo {
+  bool is_leap_year = 1;
+  // Number of months in `year` for this calendar (e.g. 12, or 13 in a
+  // Hebrew leap year).
+  int32 months_in_year = 2;
+  // The earliest and latest year this calendar system supports.
+  int32 min_year = 3;
+  int32 max_year = 4;
+  // Day count of each month in `year`, 1-indexed by position (length ==
+  // months_in_year).
+  repeated int32 days_in_month = 5;
+  // Empty on success. One of: EMPTY_INPUT, INVALID_ARGUMENT, UNKNOWN_CALENDAR,
+  // OUT_OF_RANGE, INTERNAL_ERROR.
+  string error = 6;
+}
+
+// Input for FormatDateTime: render a ZonedInstant with an explicit NodaTime
+// pattern (never the ambient/system culture).
+message FormatDateTimeInput {
+  ZonedInstant zoned = 1;
+  // A NodaTime ZonedDateTimePattern pattern string, e.g.
+  // "uuuu-MM-dd HH:mm:ss o<G> z" or "dddd, dd MMMM uuuu 'at' hh:mm tt".
+  string pattern = 2;
+}
+
+// Output for FormatDateTime and a plain-text result carrier.
+message FormatResult {
+  string text = 1;
+  // Empty on success. One of: EMPTY_INPUT, INVALID_PATTERN, INTERNAL_ERROR.
+  string error = 2;
+}
+
+// Input for ParseDateTime: parse text into a ZonedInstant with an explicit
+// NodaTime pattern (never locale-guessing natural-language parsing).
+message ParseDateTimeInput {
+  string text = 1;
+  // A NodaTime ZonedDateTimePattern pattern string. If the pattern does not
+  // itself encode a zone (no `z`/`o` specifier), `zone_id` supplies it.
+  string pattern = 2;
+  // Fallback IANA zone id used when the pattern/text has no zone specifier
+  // of its own (e.g. no `z`/`x` token). Empty defaults to "UTC".
+  string zone_id = 3;
+}

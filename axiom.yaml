@@ -1,0 +1,52 @@
+name: christiangeorgelucas/timezone-tools
+version: 0.1.0
+language: csharp
+description: Composable Axiom time-zone conversion and calendar-system nodes wrapping NodaTime (Apache-2.0, Jon Skeet's .NET date/time library, bundling its own IANA TZDB) — exact IANA zone conversion, UTC offset/DST lookup, DST-transition listing, timeline duration vs. calendar period arithmetic, DST-aware period/duration addition, ISO/Gregorian/Julian/Hebrew/Islamic/Persian/Coptic/Badi calendar-system conversion, and explicit-pattern parse/format. Every node is a stateless single-input/single-output call with a consistent structured-error contract; malformed input never crashes a node.
+nodes:
+    - name: ConvertZone
+      description: Reinterpret a point in time (instant or local wall-clock reading) in a different IANA time zone, preserving the underlying instant — e.g. 2026-07-21T12:00:00Z viewed from "America/New_York" reads as 08:00 EDT (UTC-4); the same instant viewed from "Asia/Tokyo" reads as 21:00 JST (UTC+9). When the source is given as a local wall-clock time rather than an instant, dst_resolution controls how an ambiguous (DST-overlap) or skipped (DST-gap) reading is resolved.
+      input: ConvertZoneInput
+      output: ZonedInstant
+    - name: GetOffset
+      description: The UTC offset and DST status of an IANA time zone at a specific instant — e.g. "America/New_York" at 2026-01-15T12:00:00Z is UTC-5 (EST, no DST); at 2026-07-15T12:00:00Z it is UTC-4 (EDT, DST in effect). Also returns the zone's abbreviation (e.g. "EST"/"EDT") and the equivalent local wall-clock reading.
+      input: GetOffsetInput
+      output: ZonedInstant
+    - name: ListDstTransitions
+      description: Every UTC-offset/DST change an IANA zone undergoes within a bounded instant range — e.g. "America/New_York" across 2026 lists the spring-forward transition (2026-03-08T07:00:00Z, EST->EDT) and the fall-back transition (2026-11-01T06:00:00Z, EDT->EST), each with the offset and abbreviation immediately before and after. The requested range is capped at 100 years (a longer request errors RANGE_TOO_LARGE) and the result at 500 transitions.
+      input: ListDstTransitionsInput
+      output: ListDstTransitionsResult
+    - name: GetDuration
+      description: The exact elapsed timeline duration between two instants, decomposed into days/hours/minutes/seconds/milliseconds plus exact total seconds and nanoseconds — NOT calendar-aware (use GetPeriod for years/months/days). E.g. 2026-01-15T12:00:00Z to 2026-07-15T12:00:00Z is exactly 181 days, 0h 0m 0s.
+      input: GetDurationInput
+      output: ElapsedDuration
+    - name: GetPeriod
+      description: The calendar-aware difference between two civil date-times — years, months, weeks, days, hours, minutes, seconds, as a human would count them — unlike GetDuration, which is exact elapsed time. E.g. 2020-01-15T10:00:00 to 2026-07-21T08:30:00 is 6 years, 6 months, 5 days, 22 hours, 30 minutes.
+      input: GetPeriodInput
+      output: CalendarPeriod
+    - name: AddPeriod
+      description: Add a calendar period (years/months/weeks/days/hours/minutes/seconds) to a zoned point in time, honoring DST — "one month later" lands on the same wall-clock time next month even across a DST boundary. If the shifted wall-clock time itself falls in a DST gap or overlap, dst_resolution decides how (default "later"). Contrast with AddDuration, which adds exact elapsed real time instead of a calendar period.
+      input: AddPeriodInput
+      output: ZonedInstant
+    - name: AddDuration
+      description: Add an exact elapsed duration (real seconds, not calendar units) to a zoned point in time, then reproject onto the same zone — e.g. 24 real hours added just before a spring-forward transition lands on a different wall-clock time than AddPeriod's "+1 day" would, because a 24-hour day and a calendar day are not always the same length across a DST boundary.
+      input: AddDurationInput
+      output: ZonedInstant
+    - name: ConvertCalendarDate
+      description: Reinterpret a calendar date in a different calendar system — e.g. 2026-07-21 (ISO/Gregorian) is 5786-11-07 in the Hebrew civil calendar and 1448-02-05 in the Islamic civil calendar. Supports Iso, Gregorian, Julian, Coptic, Hebrew (civil/scriptural), Islamic (civil), Persian (simple), and Badi calendars, plus the ISO-equivalent date for cross-checking.
+      input: ConvertCalendarDateInput
+      output: CalendarDate
+    - name: GetCalendarInfo
+      description: Structural facts about a calendar system for a given year — leap-year status, month count, and each month's day count, which can vary by calendar and (for lunisolar calendars like Hebrew) by year. A Hebrew leap year has 13 months instead of 12; this node reports that directly rather than requiring the caller to know the rule.
+      input: CalendarInfoInput
+      output: CalendarInfo
+    - name: FormatDateTime
+      description: Render a zoned point in time with an explicit NodaTime pattern string — never the ambient/system culture. E.g. pattern "uuuu-MM-dd HH:mm:ss o<+HH:mm> z" on 2026-07-15T12:00:00Z in "America/New_York" renders "2026-07-15 08:00:00 -04:00 America/New_York". Always formatted with CultureInfo.InvariantCulture.
+      input: FormatDateTimeInput
+      output: FormatResult
+    - name: ParseDateTime
+      description: Parse text into a zoned point in time with an explicit NodaTime pattern string — never locale-guessing natural-language parsing. If the pattern includes no zone specifier, the zone_id input supplies it (default "UTC"). Always parsed with CultureInfo.InvariantCulture, the exact inverse of FormatDateTime for a shared pattern.
+      input: ParseDateTimeInput
+      output: ZonedInstant
+build:
+    nuget_deps:
+        - NodaTime:3.3.3

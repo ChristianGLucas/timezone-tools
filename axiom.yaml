@@ -1,5 +1,5 @@
 name: christiangeorgelucas/timezone-tools
-version: 0.1.0
+version: 0.1.1
 language: csharp
 description: Composable Axiom time-zone conversion and calendar-system nodes wrapping NodaTime (Apache-2.0, Jon Skeet's .NET date/time library, bundling its own IANA TZDB) — exact IANA zone conversion, UTC offset/DST lookup, DST-transition listing, timeline duration vs. calendar period arithmetic, DST-aware period/duration addition, ISO/Gregorian/Julian/Hebrew/Islamic/Persian/Coptic/Badi calendar-system conversion, and explicit-pattern parse/format. Every node is a stateless single-input/single-output call with a consistent structured-error contract; malformed input never crashes a node.
 nodes:

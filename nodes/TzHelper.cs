@@ -26,7 +26,6 @@ internal static class TzHelper
     public const string ErrUnknownZone = "UNKNOWN_ZONE";
     public const string ErrAmbiguousLocalTime = "AMBIGUOUS_LOCAL_TIME";
     public const string ErrSkippedLocalTime = "SKIPPED_LOCAL_TIME";
-    public const string ErrRangeTooLarge = "RANGE_TOO_LARGE";
     public const string ErrUnknownCalendar = "UNKNOWN_CALENDAR";
     public const string ErrOutOfRange = "OUT_OF_RANGE";
     public const string ErrInvalidPattern = "INVALID_PATTERN";

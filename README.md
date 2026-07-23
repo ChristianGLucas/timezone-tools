@@ -47,7 +47,7 @@ resolution). As output, every field is populated.
 Every node returns a consistent structured-error contract: on failure the
 success fields are empty/zero and `error` carries a stable token
 (`EMPTY_INPUT`, `INVALID_ARGUMENT`, `UNKNOWN_ZONE`, `AMBIGUOUS_LOCAL_TIME`,
-`SKIPPED_LOCAL_TIME`, `RANGE_TOO_LARGE`, `UNKNOWN_CALENDAR`, `OUT_OF_RANGE`,
+`SKIPPED_LOCAL_TIME`, `UNKNOWN_CALENDAR`, `OUT_OF_RANGE`,
 `INVALID_PATTERN`, `INTERNAL_ERROR`) — never a crash.
 
 ## `AddPeriod` vs `AddDuration`: the classic DST gotcha

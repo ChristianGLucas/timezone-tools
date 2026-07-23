@@ -1,5 +1,5 @@
 name: christiangeorgelucas/timezone-tools
-version: 0.1.1
+version: 0.1.2
 language: csharp
 description: Composable Axiom time-zone conversion and calendar-system nodes wrapping NodaTime (Apache-2.0, Jon Skeet's .NET date/time library, bundling its own IANA TZDB) — exact IANA zone conversion, UTC offset/DST lookup, DST-transition listing, timeline duration vs. calendar period arithmetic, DST-aware period/duration addition, ISO/Gregorian/Julian/Hebrew/Islamic/Persian/Coptic/Badi calendar-system conversion, and explicit-pattern parse/format. Every node is a stateless single-input/single-output call with a consistent structured-error contract; malformed input never crashes a node.
 nodes:
@@ -12,7 +12,7 @@ nodes:
       input: GetOffsetInput
       output: ZonedInstant
     - name: ListDstTransitions
-      description: Every UTC-offset/DST change an IANA zone undergoes within a bounded instant range — e.g. "America/New_York" across 2026 lists the spring-forward transition (2026-03-08T07:00:00Z, EST->EDT) and the fall-back transition (2026-11-01T06:00:00Z, EDT->EST), each with the offset and abbreviation immediately before and after. The requested range is capped at 100 years (a longer request errors RANGE_TOO_LARGE) and the result at 500 transitions.
+      description: Every UTC-offset/DST change an IANA zone undergoes within a bounded instant range — e.g. "America/New_York" across 2026 lists the spring-forward transition (2026-03-08T07:00:00Z, EST->EDT) and the fall-back transition (2026-11-01T06:00:00Z, EDT->EST), each with the offset and abbreviation immediately before and after.
       input: ListDstTransitionsInput
       output: ListDstTransitionsResult
     - name: GetDuration

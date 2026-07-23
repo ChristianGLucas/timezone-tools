@@ -94,13 +94,7 @@ message ListDstTransitionsInput {
   string zone_id = 1;
   // Range start, RFC 3339 UTC, inclusive.
   string start_utc = 2;
-  // Range end, RFC 3339 UTC, exclusive. A span longer than 100 years is
-  // rejected with RANGE_TOO_LARGE rather than walked. Within that bound,
-  // the walk is additionally capped at 500 returned transitions as a
-  // defensive limit; `truncated` reports whether that second cap was hit
-  // before reaching end_utc (in practice unreachable for any real zone
-  // within a 100-year span, since modern zones change at most a handful of
-  // times per year).
+  // Range end, RFC 3339 UTC, exclusive.
   string end_utc = 3;
 }
 
@@ -122,13 +116,12 @@ message DstTransition {
 
 // Output for ListDstTransitions.
 message ListDstTransitionsResult {
+  reserved 2;
+  reserved "truncated";
   // Every zone-interval boundary in [start_utc, end_utc), in order.
   repeated DstTransition transitions = 1;
-  // True if the 100-year / 500-transition cap was hit before end_utc — the
-  // list is a valid prefix, not a crash, but is not the complete range.
-  bool truncated = 2;
   // Empty on success. One of: EMPTY_INPUT, INVALID_ARGUMENT, UNKNOWN_ZONE,
-  // RANGE_TOO_LARGE, INTERNAL_ERROR.
+  // INTERNAL_ERROR.
   string error = 3;
 }
 

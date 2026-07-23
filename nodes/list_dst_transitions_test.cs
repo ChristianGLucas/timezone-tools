@@ -89,7 +89,6 @@ public class ListDstTransitionsTest
         };
         var result = ListDstTransitionsNode.ListDstTransitions(ax, input);
         Assert.Equal("", result.Error);
-        Assert.False(result.Truncated);
         Assert.Equal(2, result.Transitions.Count);
 
         var springForward = result.Transitions[0];
@@ -124,20 +123,6 @@ public class ListDstTransitionsTest
         var result = ListDstTransitionsNode.ListDstTransitions(ax, input);
         Assert.Equal("", result.Error);
         Assert.Empty(result.Transitions);
-    }
-
-    [Fact]
-    public void TestListDstTransitions_SpanOver100Years_ReturnsRangeTooLarge()
-    {
-        IAxiomContext ax = new TestContext();
-        var input = new ListDstTransitionsInput
-        {
-            ZoneId = "America/New_York",
-            StartUtc = "1900-01-01T00:00:00Z",
-            EndUtc = "2100-01-01T00:00:00Z",
-        };
-        var result = ListDstTransitionsNode.ListDstTransitions(ax, input);
-        Assert.Equal("RANGE_TOO_LARGE", result.Error);
     }
 
     [Fact]

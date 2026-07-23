@@ -14,9 +14,6 @@ namespace Nodes;
 
 public static class ListDstTransitionsNode
 {
-    private const int MaxYearsSpan = 100;
-    private const int MaxTransitions = 500;
-
     /// <param name="ax">The AxiomContext: logging, secrets, reflection, mutation.</param>
     /// <param name="input">The decoded ListDstTransitionsInput for this invocation.</param>
     public static ListDstTransitionsResult ListDstTransitions(IAxiomContext ax, ListDstTransitionsInput input)
@@ -37,12 +34,6 @@ public static class ListDstTransitionsNode
         }
 
         if (end <= start) return new ListDstTransitionsResult { Error = TzHelper.ErrInvalidArgument };
-
-        // Bound the walk on the RAW input before doing any work: reject a span
-        // longer than MaxYearsSpan outright rather than silently truncating —
-        // a caller who actually wants the full range should page it themselves.
-        var cappedEnd = SafeAddYears(start, MaxYearsSpan);
-        if (end > cappedEnd) return new ListDstTransitionsResult { Error = TzHelper.ErrRangeTooLarge };
 
         var result = new ListDstTransitionsResult();
         var cursor = start;
@@ -65,30 +56,9 @@ public static class ListDstTransitionsNode
                 AbbreviationAfter = nextInterval.Name,
             });
 
-            if (result.Transitions.Count >= MaxTransitions)
-            {
-                result.Truncated = true;
-                break;
-            }
-
             cursor = interval.End;
         }
 
         return result;
-    }
-
-    // Instant has no direct "add calendar years" operation (it is a pure
-    // timeline point) — approximate the 100-year cap generously via whole
-    // days so it never rejects a span that is actually within bounds.
-    private static Instant SafeAddYears(Instant from, int years)
-    {
-        try
-        {
-            return from + Duration.FromDays(years * 366L);
-        }
-        catch (OverflowException)
-        {
-            return Instant.MaxValue;
-        }
     }
 }
